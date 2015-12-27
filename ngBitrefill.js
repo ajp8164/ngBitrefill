@@ -1,6 +1,6 @@
 'use strict';
 
-angular.module('ngBitrefill')
+angular.module('ngBitrefill', ['base64'])
   .provider('bitrefill', function() {
     var apiKey,
         apiPass;
@@ -10,13 +10,14 @@ angular.module('ngBitrefill')
       this.apiPass = password;
     }
     
-    function Bitrefill(cfg, $log, $http) {
+    function Bitrefill(cfg, $log, $http, $base64) {
       if (!(this instanceof Bitrefill))
         return new Bitrefill(cfg)
 
       this.cfg = cfg
       this.$log = $log;
       this.$http = $http;
+      this.$base64 = $base64;
 
       /*assert(this.cfg, 'cfg is required')
       assert(this.cfg.key, 'cfg.key is required')
@@ -37,12 +38,15 @@ angular.module('ngBitrefill')
     };
     
     Bitrefill.prototype.handleErrorResponse = function(response, cb) {
-      this.$log.error(response.status + ': ' + response.data);
+      this.$log.error(response.status + ': ' + JSON.stringify(response.data));
       cb(response.data);
     };
     
     Bitrefill.prototype.request = function(config, cb) {
       var self = this;
+      config.headers = {
+        Authorization: 'Basic ' + this.$base64.encode(this.cfg.key + ':' + this.cfg.secret)
+      };
       this.$http(config).then(function successCallback(response) {
         self.handleDataResponse(response, cb);
       }, function errorCallback(response) {
@@ -102,7 +106,7 @@ angular.module('ngBitrefill')
     };
 
     
-    this.$get = function($log, $http) {
+    this.$get = function($log, $http, $base64) {
       if (!this.apiKey || !this.apiPass) {
         throw new Error("BitrefillService is not configured. " +
                             "Call setCredentials(apiKey, apiPass) on it's provider");
@@ -112,7 +116,7 @@ angular.module('ngBitrefill')
         key: this.apiKey,
         secret: this.apiPass,
         url: 'api.bitrefill.com/v1'
-      }, $log, $http);
+      }, $log, $http, $base64);
       
       return bitrefill;
     };
